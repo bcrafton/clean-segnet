@@ -122,12 +122,11 @@ val_iterator = val_dataset.make_initializable_iterator()
 
 ####################################
 
-model   = SegNet(batch_size=batch_size, init='glorot_uniform', load='/usr/scratch/bcrafton/semantic-segmentation/code/MobileNetWeights.npy')
+model   = SegNet(batch_size=batch_size, init='glorot_uniform', load='./MobileNetWeights.npy')
 out     = model.predict(image)
 predict = tf.argmax(tf.nn.softmax(out), axis=3, output_type=tf.int32)
 
-correct = tf.equal(predict, label)
-sum_correct = tf.reduce_sum(tf.cast(correct, tf.float32))
+tf_correct = tf.reduce_sum(tf.cast(tf.equal(predict, label), tf.float32))
 loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=label_one_hot, logits=out)
 train = tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=args.eps).minimize(loss)
 
@@ -153,10 +152,10 @@ for ii in range(args.epochs):
     losses = deque(maxlen=25)
 
     for jj in range(0, train_examples, args.batch_size):
-        [c, l, img_in, img_out, _] = sess.run([sum_correct, loss, image, predict, train], feed_dict={handle: train_handle, batch_size: args.batch_size, lr: args.lr})
+        [np_correct, np_loss, img_in, img_out, _] = sess.run([tf_correct, loss, image, predict, train], feed_dict={handle: train_handle, batch_size: args.batch_size, lr: args.lr})
 
-        total_correct.append(c)
-        losses.append(l)
+        total_correct.append(np_correct)
+        losses.append(np_loss)
 
         if (jj % 100 == 0):
             print ('%d %f %f' % (jj, np.average(total_correct) / (args.batch_size * 480. * 480.), np.average(losses)))
@@ -181,10 +180,10 @@ for ii in range(args.epochs):
     losses = []
 
     for jj in range(0, val_examples, args.batch_size):
-        [c, l] = sess.run([sum_correct, loss], feed_dict={handle: val_handle, batch_size: args.batch_size, lr: args.lr})
+        [np_correct, np_loss] = sess.run([tf_correct, loss], feed_dict={handle: val_handle, batch_size: args.batch_size, lr: args.lr})
 
-        total_correct.append(c)
-        losses.append(l)
+        total_correct.append(np_correct)
+        losses.append(np_loss)
 
         if (jj % 100 == 0):
             print ('%d %f %f' % (jj, np.average(total_correct) / (args.batch_size * 480. * 480.), np.average(losses)))
